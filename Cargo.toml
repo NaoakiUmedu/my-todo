@@ -1,0 +1,25 @@
+[package]
+name = "my-todo"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Webアプリケーションフレームワーク 
+axum = "0.4.8"
+# httpリクエストを扱うパッケージ
+hyper = { version = "0.14.16", features = ["full"] }
+# 非同期処理ランタイム
+tokio = { version = "1.16.1", features = ["full"] }
+# サーバ構築
+tower = "0.4.11"
+# httpヘッダーのmime定義
+mime = "0.3.16"
+# jsonパース
+serde = { version = "1.0.136", features = ["derive"] }
+serde_json = "1.0.78"
+# ロギング・デバッグ
+tracing = "0.1.30"
+tracing-subscriber = { version = "0.3.8", features = ["env-filter"] }
+# Resultを扱う
+anyhow = "1.0.56"
+thiserror = "1.0.30"
