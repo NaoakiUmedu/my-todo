@@ -7,7 +7,8 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use handlers::create_todo;
+
+use handlers::{all_todo, create_todo, delete_todo, find_todo, update_todo};
 use std::net::SocketAddr;
 use std::{env, sync::Arc};
 
@@ -33,6 +34,13 @@ fn create_app<T: TodoRepository>(repository: T) -> Router {
     Router::new()
         .route("/", get(root))
         .route("/todos", post(create_todo::<T>))
+        .route("/todos", post(create_todo::<T>).get(all_todo::<T>))
+        .route(
+            "/todos/:id",
+            get(find_todo::<T>)
+                .delete(delete_todo::<T>)
+                .patch(update_todo::<T>),
+        )
         .layer(Extension(Arc::new(repository)))
 }
 
@@ -42,8 +50,14 @@ async fn root() -> &'static str {
 
 #[cfg(test)]
 mod test {
+    // **point 1**
     use super::*;
-    use axum::{body::Body, http::Request};
+    use crate::repositories::{CreateTodo, Todo};
+    use axum::response::Response;
+    use axum::{
+        body::Body,
+        http::{header, Method, Request, StatusCode},
+    };
     use tower::ServiceExt;
 
     #[tokio::test]
@@ -55,4 +69,33 @@ mod test {
         let body: String = String::from_utf8(bytes.to_vec()).unwrap();
         assert_eq!(body, "Hello! axum!!");
     }
+
+    #[tokio::test]
+    async fn should_created_todo() {
+        let expected = Todo::new(1, "should_return_created_todo".to_string());
+
+        let repository = TodoRepositoryForMemory::new();
+        let req = build_todo_req_with_json(
+            "/todos",
+            Method::POST,
+            r#"{ "text": "should_return_created_todo" }"#.to_string(),
+        );
+        let res = create_app(repository).oneshot(req).await.unwrap();
+        let todo = res_to_todo(res).await;
+        assert_eq!(expected, todo);
+    }
+
+    #[tokio::test]
+    async fn should_find_todo() {
+        let expected = Todo::new(1, "should_find_todo".to_string());
+
+        let repository = TodoRepositoryForMemory::new();
+        repository.create(CreateTodo::new("should_find_todo".to_string()));
+        let req = build_todo_req_with_empty(Method::GET, "/todos/1");
+        let res = create_app(repository).oneshot(req).await.unwrap();
+        let todo = res_to_todo(res).await;
+        assert_eq!(expected, todo);
+    }
+
+    // TODO should_get_all_todos()から
 }
