@@ -12,6 +12,7 @@ use handlers::{all_todo, create_todo, delete_todo, find_todo, update_todo};
 use std::net::SocketAddr;
 use std::{env, sync::Arc};
 
+/// メインメソッド
 #[tokio::main]
 async fn main() {
     // loggingの初期化
@@ -30,6 +31,7 @@ async fn main() {
         .unwrap();
 }
 
+/// ルーティングを設定
 fn create_app<T: TodoRepository>(repository: T) -> Router {
     Router::new()
         .route("/", get(root))
@@ -43,13 +45,13 @@ fn create_app<T: TodoRepository>(repository: T) -> Router {
         .layer(Extension(Arc::new(repository)))
 }
 
+/// ルートのコントローラ
 async fn root() -> &'static str {
     "Hello! axum!!"
 }
 
 #[cfg(test)]
 mod test {
-    // **point 1**
     use super::*;
     use crate::repositories::{CreateTodo, Todo};
     use axum::response::Response;
@@ -58,9 +60,11 @@ mod test {
         http::{header, Method, Request, StatusCode},
     };
     use tower::ServiceExt;
-    use tracing_subscriber::fmt::format;
 
-    // **point 2**
+    /// Json入りリクエストを作成する
+    /// @param path リクエストパス
+    /// @param method リクエストメソッド
+    /// @param json_body リクエストボディ
     fn build_todo_req_with_json(path: &str, method: Method, json_body: String) -> Request<Body> {
         Request::builder()
             .uri(path)
@@ -70,6 +74,10 @@ mod test {
             .unwrap()
     }
 
+    /// 空のリクエストを作成する
+    /// @param path リクエストパス
+    /// @param method リクエストメソッド
+    /// @return リクエスト
     fn build_todo_req_with_empty(path: &str, method: Method) -> Request<Body> {
         Request::builder()
             .uri(path)
@@ -78,7 +86,7 @@ mod test {
             .unwrap()
     }
 
-    // **Point 3**
+    /// レスポンスをTodoに変換する
     async fn res_to_todo(res: Response) -> Todo {
         let bytes = hyper::body::to_bytes(res.into_body()).await.unwrap();
         let body: String = String::from_utf8(bytes.to_vec()).unwrap();
@@ -87,6 +95,7 @@ mod test {
         todo
     }
 
+    /// ルートへのリクエスト
     #[tokio::test]
     async fn should_return_hello_world() {
         let repository: TodoRepositoryForMemory = TodoRepositoryForMemory::new();
@@ -97,6 +106,7 @@ mod test {
         assert_eq!(body, "Hello! axum!!");
     }
 
+    /// Todoの作成
     #[tokio::test]
     async fn should_created_todo() {
         let expected = Todo::new(1, "should_return_created_todo".to_string());
@@ -112,6 +122,7 @@ mod test {
         assert_eq!(expected, todo);
     }
 
+    /// todoの検索
     #[tokio::test]
     async fn should_find_todo() {
         let expected = Todo::new(1, "should_find_todo".to_string());
@@ -139,5 +150,35 @@ mod test {
         assert_eq!(vec![expected], todo);
     }
 
-    // should_update_todo()から
+    /// Todoの更新
+    #[tokio::test]
+    async fn should_update_todo() {
+        let expected = Todo::new(1, "should_update_todo".to_string());
+
+        let repository = TodoRepositoryForMemory::new();
+        repository.create(CreateTodo::new("before_update_todo".to_string()));
+        let req = build_todo_req_with_json(
+            "/todos/1",
+            Method::PATCH,
+            r#"{
+                "id": 1,
+                "text": "should_update_todo",
+                "completed": false
+            }"#
+            .to_string(),
+        );
+        let res = create_app(repository).oneshot(req).await.unwrap();
+        let todo = res_to_todo(res).await;
+        assert_eq!(expected, todo);
+    }
+
+    /// Todoの削除
+    #[tokio::test]
+    async fn should_delete_todo() {
+        let repository = TodoRepositoryForMemory::new();
+        repository.create(CreateTodo::new("should_delete_todo".to_string()));
+        let req = build_todo_req_with_empty("/todos/1", Method::DELETE);
+        let res = create_app(repository).oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::NO_CONTENT);
+    }
 }
