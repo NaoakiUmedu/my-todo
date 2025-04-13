@@ -13,6 +13,7 @@ enum RepositoryError {
     NotFound(i32),
 }
 
+/// TODOリポジトリ
 pub trait TodoRepository: Clone + std::marker::Send + std::marker::Sync + 'static {
     fn create(&self, payload: CreateTodo) -> Todo;
     fn find(&self, id: i32) -> Option<Todo>;
@@ -21,6 +22,7 @@ pub trait TodoRepository: Clone + std::marker::Send + std::marker::Sync + 'stati
     fn delete(&self, id: i32) -> anyhow::Result<()>;
 }
 
+/// TODOデータ
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct Todo {
     id: i32,
@@ -28,6 +30,7 @@ pub struct Todo {
     completed: bool,
 }
 
+/// TODO作成用データ
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct CreateTodo {
     text: String,
@@ -35,18 +38,20 @@ pub struct CreateTodo {
 
 #[cfg(test)]
 impl CreateTodo {
+    /// new object
     pub fn new(text: String) -> Self {
         Self { text }
     }
 }
 
+/// TODO更新用データ
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct UpdateTodo {
     text: Option<String>,
     completed: Option<bool>,
 }
-
 impl Todo {
+    /// new object
     pub fn new(id: i32, text: String) -> Self {
         Self {
             id,
@@ -56,14 +61,17 @@ impl Todo {
     }
 }
 
+/// TODOを保持するための型
 type TodoDatas = HashMap<i32, Todo>;
 
+/// オンメモリリポジトリ
 #[derive(Debug, Clone)]
 pub struct TodoRepositoryForMemory {
     store: Arc<RwLock<TodoDatas>>,
 }
 
 impl TodoRepositoryForMemory {
+    /// new object
     pub fn new() -> Self {
         TodoRepositoryForMemory {
             store: Arc::default(),
@@ -82,6 +90,7 @@ impl TodoRepositoryForMemory {
 }
 
 impl TodoRepository for TodoRepositoryForMemory {
+    /// TODO作成
     fn create(&self, payload: CreateTodo) -> Todo {
         let mut store = self.write_store_ref();
         let id = (store.len() + 1) as i32;
@@ -89,17 +98,17 @@ impl TodoRepository for TodoRepositoryForMemory {
         store.insert(id, todo.clone());
         todo
     }
-
+    /// TODO検索
     fn find(&self, id: i32) -> Option<Todo> {
         let store = self.read_store_ref();
         store.get(&id).map(|todo| todo.clone())
     }
-
+    /// 全権取得
     fn all(&self) -> Vec<Todo> {
         let store = self.read_store_ref();
         Vec::from_iter(store.values().map(|todo| todo.clone()))
     }
-
+    /// 更新
     fn update(&self, id: i32, payload: UpdateTodo) -> anyhow::Result<Todo> {
         let mut store = self.write_store_ref();
         let todo = store.get(&id).context(RepositoryError::NotFound(id))?;
@@ -113,7 +122,7 @@ impl TodoRepository for TodoRepositoryForMemory {
         store.insert(id, todo.clone());
         Ok(todo)
     }
-
+    /// 削除
     fn delete(&self, id: i32) -> anyhow::Result<()> {
         let mut store = self.write_store_ref();
         store.remove(&id).ok_or(RepositoryError::NotFound(id))?;
