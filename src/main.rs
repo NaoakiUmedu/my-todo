@@ -121,6 +121,36 @@ mod test {
         let todo = res_to_todo(res).await;
         assert_eq!(expected, todo);
     }
+    /// Todoの作成 Jsonパースエラー
+    #[tokio::test]
+    async fn should_fail_created_todo_by_json_parse_error() {
+        let repository = TodoRepositoryForMemory::new();
+        let req = build_todo_req_with_json(
+            "/todos",
+            Method::POST,
+            r#"{ "text" :"should_return_created_todo" "#.to_string(),
+        );
+        let res = create_app(repository).oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+    }
+    /// Todoの作成 textが未入力でエラー
+    #[tokio::test]
+    async fn should_fail_created_todo_by_text_is_empty() {
+        let repository = TodoRepositoryForMemory::new();
+        let req =
+            build_todo_req_with_json("/todos", Method::POST, r#"{ "text" : "" }"#.to_string());
+        let res = create_app(repository).oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+    }
+    /// Todoの作成 textが長すぎでエラー
+    #[tokio::test]
+    async fn should_fail_created_todo_by_text_is_too_long() {
+        let repository = TodoRepositoryForMemory::new();
+        let req =
+            build_todo_req_with_json("/todos", Method::POST, r#"{ "text" : "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }"#.to_string());
+        let res = create_app(repository).oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+    }
 
     /// todoの検索
     #[tokio::test]
@@ -170,6 +200,42 @@ mod test {
         let res = create_app(repository).oneshot(req).await.unwrap();
         let todo = res_to_todo(res).await;
         assert_eq!(expected, todo);
+    }
+    /// Todoの更新エラー textが未入力
+    #[tokio::test]
+    async fn should_fail_update_todo_by_text_is_empty() {
+        let repository = TodoRepositoryForMemory::new();
+        repository.create(CreateTodo::new("before_update_todo".to_string()));
+        let req = build_todo_req_with_json(
+            "/todos/1",
+            Method::PATCH,
+            r#"{
+                "id": 1,
+                "text": "",
+                "completed": false
+            }"#
+            .to_string(),
+        );
+        let res = create_app(repository).oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+    }
+    /// Todoの更新エラー textが長すぎる
+    #[tokio::test]
+    async fn should_fail_update_todo_by_text_is_too_long() {
+        let repository = TodoRepositoryForMemory::new();
+        repository.create(CreateTodo::new("before_update_todo".to_string()));
+        let req = build_todo_req_with_json(
+            "/todos/1",
+            Method::PATCH,
+            r#"{
+                "id": 1,
+                "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "completed": false
+            }"#
+            .to_string(),
+        );
+        let res = create_app(repository).oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
     }
 
     /// Todoの削除
