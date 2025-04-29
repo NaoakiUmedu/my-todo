@@ -16,8 +16,8 @@ use std::{env, sync::Arc};
 #[tokio::main]
 async fn main() {
     // loggingの初期化
-    let leg_level = env::var("RUST_LOG").unwrap_or("info".to_string());
-    env::set_var("RUST_LOG", leg_level);
+    let log_level: String = env::var("RUST_LOG").unwrap_or("info".to_string());
+    env::set_var("RUST_LOG", log_level);
     tracing_subscriber::fmt::init();
 
     // サーバ立ち上げ
