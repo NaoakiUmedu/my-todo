@@ -1,12 +1,16 @@
-build:
+db-build:
 	docker-compose build
-db-start:
+db:
 	docker-compose up -d
 db-bash:
 	docker compose exec database bash
-db-down:
-	docker compose down
+db-stop:
+	docker compose stop
 dev:
+	sqlx db create
+	sqlx migrate run
 	cargo watch -x run
+clean:
+	cargo clean
 test:
 	cargo test

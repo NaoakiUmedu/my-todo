@@ -13,7 +13,7 @@ services:
       POSTGRES_USER: admin
       POSTGRES_DB: todos
       TZ: Asia/Tokyo
-    restart: always
+    # restart: always
 
 volumes:
   pgdate:
