@@ -1,6 +1,7 @@
 use anyhow::Context;
 use axum::async_trait;
 use serde::{Deserialize, Serialize};
+use sqlx::PgPool;
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
@@ -69,6 +70,9 @@ impl Todo {
 /// TODOを保持するための型
 type TodoDatas = HashMap<i32, Todo>;
 
+//-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
 /// オンメモリリポジトリ
 #[derive(Debug, Clone)]
 pub struct TodoRepositoryForMemory {
@@ -140,6 +144,45 @@ impl TodoRepository for TodoRepositoryForMemory {
         Ok(())
     }
 }
+
+//-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+/// PostgreSQLリポジトリ
+#[derive(Debug, Clone)]
+pub struct TodoRepositoryForDb {
+    pool: PgPool,
+}
+
+impl TodoRepositoryForDb {
+    /// new
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool: (pool) }
+    }
+}
+
+#[async_trait]
+impl TodoRepository for TodoRepositoryForDb {
+    async fn create(&self, payload: CreateTodo) -> anyhow::Result<Todo> {
+        todo!()
+    }
+    async fn find(&self, id: i32) -> anyhow::Result<Todo> {
+        todo!()
+    }
+    async fn all(&self) -> anyhow::Result<Vec<Todo>> {
+        todo!()
+    }
+    async fn update(&self, id: i32, payload: UpdateTodo) -> anyhow::Result<Todo> {
+        todo!()
+    }
+    async fn delete(&self, id: i32) -> anyhow::Result<()> {
+        todo!()
+    }
+}
+
+//-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
 
 #[cfg(test)]
 mod test {
