@@ -14,3 +14,7 @@ clean:
 	cargo clean
 test:
 	cargo test
+# standalone test
+test-s:
+	cargo test --no-default-features
+

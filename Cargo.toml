@@ -31,3 +31,7 @@ validator = {version="0.14.0", features = ["derive"]}
 sqlx = {version="0.5.11", features= ["runtime-tokio-rustls", "any", "postgres"]}
 # .envの中身を読むライブラリ
 dotenv = "0.15.0"
+
+[features]
+default = ["database-test"]
+database-test = []
