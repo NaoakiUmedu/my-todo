@@ -138,10 +138,93 @@ impl TodoRepository for TodoRepositoryForDb {
     }
 }
 
+/// DB用リポジトリのためのテスト
+#[cfg(test)]
+mod test {
+    use super::*;
+    use dotenv::dotenv;
+    use sqlx::PgPool;
+    use std::env;
+
+    /// シナリオテスト(DBが起動している必要がある)
+    #[tokio::test]
+    async fn todo_crud_scenario() {
+        // point 1
+        dotenv().ok();
+        let database_url = &env::var("DATABASE_URL").expect("undefined [DATABASE_URL");
+        let pool = PgPool::connect(database_url)
+            .await
+            .expect(&format!("fail connect database, url is [{}]", database_url));
+        let repository = TodoRepositoryForDb::new(pool.clone());
+        let todo_text = "[crud_scenario] text";
+
+        // create
+        let created = repository
+            .create(CreateTodo::new(todo_text.to_string()))
+            .await
+            .expect("[create] returned Err");
+        assert_eq!(created.text, todo_text);
+        assert!(!created.completed);
+
+        // find
+        let todo = repository
+            .find(created.id)
+            .await
+            .expect("[find] returned Err");
+        assert_eq!(created, todo);
+
+        // all
+        let todos = repository.all().await.expect("[all] returned Err");
+        let mut is_ok = false;
+        for todo in todos {
+            if created == todo {
+                is_ok = true;
+            }
+        }
+        assert!(is_ok);
+
+        // update
+        let updated_text = "[crud_scenario] updated text";
+        let todo = repository
+            .update(
+                todo.id,
+                UpdateTodo {
+                    text: Some(updated_text.to_string()),
+                    completed: Some(true),
+                },
+            )
+            .await
+            .expect("[update] returned Err");
+        assert_eq!(updated_text, todo.text);
+        assert!(todo.completed);
+
+        // delete
+        let _ = repository
+            .delete(todo.id)
+            .await
+            .expect("[delete] returned Err");
+        // deleteで消えていること
+        let res = repository.find(created.id).await;
+        assert!(res.is_err());
+
+        let todo_rows = sqlx::query(
+            r#"
+               select * from todos where id=$1
+            "#,
+        )
+        .bind(todo.id)
+        .fetch_all(&pool)
+        .await
+        .expect("[delete] todo_labels fetch error");
+        assert!(todo_rows.len() == 0);
+    }
+}
+
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 
+/// テスト用便利屋さん
 #[cfg(test)]
 pub mod test_utils {
     use super::*;
