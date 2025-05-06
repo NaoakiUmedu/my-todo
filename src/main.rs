@@ -9,7 +9,6 @@ use axum::{
 };
 use dotenv::dotenv;
 use handlers::{all_todo, create_todo, delete_todo, find_todo, update_todo};
-use repositories::Todo;
 use sqlx::PgPool;
 use std::net::SocketAddr;
 use std::{env, sync::Arc};
@@ -17,13 +16,14 @@ use std::{env, sync::Arc};
 /// メインメソッド
 #[tokio::main]
 async fn main() {
+    // envファイル読み込み
+    dotenv().ok();
+
     // loggingの初期化
     let log_level: String = env::var("RUST_LOG").unwrap_or("info".to_string());
     env::set_var("RUST_LOG", log_level);
     tracing_subscriber::fmt::init();
 
-    // envファイル読み込み
-    dotenv().ok();
     let database_url = &env::var("DATABASE_URL").expect("undefined [DATABASE_URL]");
     tracing::debug!("start connect database...");
     let pool = PgPool::connect(database_url)

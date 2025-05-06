@@ -1,6 +1,6 @@
 use axum::async_trait;
 use serde::{Deserialize, Serialize};
-use sqlx::PgPool;
+use sqlx::{FromRow, PgPool};
 use thiserror::Error;
 use validator::Validate;
 
@@ -8,6 +8,8 @@ use validator::Validate;
 enum RepositoryError {
     #[error("NotFound, id is {0}")]
     NotFound(i32),
+    #[error("Unexpected error: {0}")]
+    Unexpected(String),
 }
 
 /// TODOリポジトリ
@@ -21,7 +23,7 @@ pub trait TodoRepository: Clone + std::marker::Send + std::marker::Sync + 'stati
 }
 
 /// TODOデータ
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, FromRow)]
 pub struct Todo {
     id: i32,
     text: String,
@@ -63,20 +65,76 @@ impl TodoRepositoryForDb {
 
 #[async_trait]
 impl TodoRepository for TodoRepositoryForDb {
+    /// 作成
     async fn create(&self, payload: CreateTodo) -> anyhow::Result<Todo> {
-        todo!()
+        let todo = sqlx::query_as::<_, Todo>(
+            r#"
+            insert into todos (text, completed) 
+            values ($1, false)
+            returning *
+            "#,
+        )
+        .bind(payload.text.clone())
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(todo)
     }
+
+    /// idをもとに1件取得(主キーなので必ず1件のみ取れる)
     async fn find(&self, id: i32) -> anyhow::Result<Todo> {
-        todo!()
+        let todo = sqlx::query_as::<_, Todo>(r#"select * from todos where id=$1"#)
+            .bind(id)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| match e {
+                sqlx::Error::RowNotFound => RepositoryError::NotFound(id),
+                _ => RepositoryError::Unexpected(e.to_string()),
+            })?;
+
+        Ok(todo)
     }
+
+    /// 全件取得
     async fn all(&self) -> anyhow::Result<Vec<Todo>> {
-        todo!()
+        let todos = sqlx::query_as::<_, Todo>(r#"select * from todos"#)
+            .fetch_all(&self.pool)
+            .await?;
+
+        Ok(todos)
     }
+
+    /// 更新
     async fn update(&self, id: i32, payload: UpdateTodo) -> anyhow::Result<Todo> {
-        todo!()
+        let old_todo = self.find(id).await?;
+        let todo = sqlx::query_as(
+            r#"
+            update todos set text = $1, completed = $2
+            where id=$3
+            returning *
+            "#,
+        )
+        .bind(payload.text.unwrap_or(old_todo.text))
+        .bind(payload.completed.unwrap_or(old_todo.completed))
+        .bind(id)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(todo)
     }
+
+    /// 削除
     async fn delete(&self, id: i32) -> anyhow::Result<()> {
-        todo!()
+        sqlx::query(r#"delete from todos where id=$1"#)
+            .bind(id)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| match e {
+                sqlx::Error::RowNotFound => RepositoryError::NotFound(id),
+                _ => RepositoryError::Unexpected(e.to_string()),
+            })?;
+
+        Ok(())
     }
 }
 
