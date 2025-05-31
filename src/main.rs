@@ -89,7 +89,7 @@ mod test {
         Request::builder()
             .uri(path)
             .method(method)
-            .header(header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+            .header(CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
             .body(Body::from(json_body))
             .unwrap()
     }

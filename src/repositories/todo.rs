@@ -6,7 +6,7 @@ use super::RepositoryError;
 
 /// TODOリポジトリ
 #[async_trait]
-pub trait TodoRepository: Clone + std::marker::Send + std::marker::Sync + 'static {
+pub trait TodoRepository: Clone + Send + Sync + 'static {
     async fn create(&self, payload: CreateTodo) -> anyhow::Result<Todo>;
     async fn find(&self, id: i32) -> anyhow::Result<Todo>;
     async fn all(&self) -> anyhow::Result<Vec<Todo>>;
@@ -51,7 +51,7 @@ pub struct TodoRepositoryForDb {
 impl TodoRepositoryForDb {
     /// new
     pub fn new(pool: PgPool) -> Self {
-        Self { pool: (pool) }
+        Self { pool: pool }
     }
 }
 
@@ -209,7 +209,7 @@ mod test {
         .fetch_all(&pool)
         .await
         .expect("[delete] todo_labels fetch error");
-        assert!(todo_rows.len() == 0);
+        assert_eq!(todo_rows.len(), 0);
     }
 }
 
