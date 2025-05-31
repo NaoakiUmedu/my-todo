@@ -23,7 +23,9 @@ async fn main() {
 
     // loggingの初期化
     let log_level: String = env::var("RUST_LOG").unwrap_or("info".to_string());
-    env::set_var("RUST_LOG", log_level);
+    unsafe {
+        env::set_var("RUST_LOG", log_level);
+    }
     tracing_subscriber::fmt::init();
 
     let database_url = &env::var("DATABASE_URL").expect("undefined [DATABASE_URL]");
