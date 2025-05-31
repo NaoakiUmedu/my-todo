@@ -324,12 +324,12 @@ pub mod test_utils {
         use std::vec;
 
         /// TODOを保持するための型
-        type TodoDatas = HashMap<i32, Todo>;
+        type TodoData = HashMap<i32, Todo>;
 
         /// オンメモリリポジトリ
         #[derive(Debug, Clone)]
         pub struct TodoRepositoryForMemory {
-            store: Arc<RwLock<TodoDatas>>,
+            store: Arc<RwLock<TodoData>>,
         }
 
         impl TodoRepositoryForMemory {
@@ -341,12 +341,12 @@ pub mod test_utils {
             }
 
             /// スレッドセーフにstoreを取得
-            fn write_store_ref(&self) -> RwLockWriteGuard<TodoDatas> {
+            fn write_store_ref(&self) -> RwLockWriteGuard<TodoData> {
                 self.store.write().unwrap()
             }
 
             /// スレッドセーフにstoreを取得
-            fn read_store_ref(&self) -> RwLockReadGuard<TodoDatas> {
+            fn read_store_ref(&self) -> RwLockReadGuard<TodoData> {
                 self.store.read().unwrap()
             }
         }
@@ -409,7 +409,7 @@ pub mod test_utils {
             let todo = repository
                 .create(CreateTodo { text })
                 .await
-                .expect("failed craete todo");
+                .expect("failed create todo");
             assert_eq!(expected, todo);
 
             // find

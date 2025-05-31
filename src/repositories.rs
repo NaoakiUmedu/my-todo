@@ -9,4 +9,6 @@ enum RepositoryError {
     NotFound(i32),
     #[error("Unexpected error: {0}")]
     Unexpected(String),
+    #[error("Duplicate ID error: {0}")]
+    Duplicate(i32),
 }

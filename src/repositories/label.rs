@@ -1,10 +1,11 @@
 use axum::async_trait;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
+use super::RepositoryError;
 
 /// ラベルリポジトリ
 #[async_trait]
-pub trait LabelRepository: Clone + std::marker::Send + std::marker::Sync + 'static {
+pub trait LabelRepository: Clone + Send + Sync + 'static {
     async fn create(&self, name: String) -> anyhow::Result<Label>;
     async fn all(&self) -> anyhow::Result<Vec<Label>>;
     async fn delete(&self, id: i32) -> anyhow::Result<()>;
@@ -15,11 +16,6 @@ pub trait LabelRepository: Clone + std::marker::Send + std::marker::Sync + 'stat
 pub struct Label {
     pub id: i32,
     pub name: String,
-}
-impl Label {
-    pub fn new(id: i32, name: String) -> Self {
-        Self { id, name }
-    }
 }
 
 /// ラベル(Update用)
@@ -47,15 +43,44 @@ impl LabelRepositoryForDb {
 impl LabelRepository for LabelRepositoryForDb {
     /// 新規作成
     async fn create(&self, name: String) -> anyhow::Result<Label> {
-        todo!()
+        let optional_label = sqlx::query_as::<_, Label>(
+
+            r#" select * from labels where name = $1 "#
+        ).bind(name.clone())
+            .fetch_optional(&self.pool)
+            .await?;
+
+        if let Some(label) = optional_label {
+            return Err(RepositoryError::Duplicate(label.id).into());
+        }
+
+        let label = sqlx::query_as::<_, Label>(
+            r#" insert into labels ( name ) values ($1) returning * "#,
+        )
+            .bind(name.clone())
+            .fetch_one(&self.pool)
+            .await?;
+
+        Ok(label)
     }
     /// 全件取得
     async fn all(&self) -> anyhow::Result<Vec<Label>> {
-        todo!()
+        let labels = sqlx::query_as::<_, Label>(
+            r#" select * from labels order by labels.id asc "#,
+        ).fetch_all(&self.pool).await?;
+
+        Ok(labels)
     }
     /// 削除
     async fn delete(&self, id: i32) -> anyhow::Result<()> {
-        todo!()
+        sqlx::query(
+            r#" delete from labels where id = $1 "#,
+        ).bind(id).execute(&self.pool).await.map_err(|e| match e {
+            sqlx::Error::RowNotFound => RepositoryError::NotFound(id),
+            _ => RepositoryError::Unexpected(e.to_string()),
+        })?;
+
+        Ok(())
     }
 }
 
@@ -74,7 +99,7 @@ mod test {
     const DB_URL_ENV: &str = "DATABASE_URL";
 
     #[tokio::test]
-    async fn crud_scneario() {
+    async fn crud_scenario() {
         dotenv().ok();
         let database_url = &env::var(DB_URL_ENV).expect(&format!("undefined [{}]", DB_URL_ENV));
         let pool = PgPool::connect(database_url).await.expect(&format!("fail connect database, url is [{}]", database_url));
@@ -104,10 +129,7 @@ mod test {
 #[cfg(test)]
 pub mod test_utils {
     use super::*;
-    use anyhow::Context;
-    use axum::async_trait;
-    use std::{collections::HashMap, env, sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard}};
-    use dotenv::dotenv;
+    use std::{collections::HashMap, sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard}};
     use crate::repositories::RepositoryError;
 
     type LabelData = HashMap<i32, Label>;
@@ -134,13 +156,13 @@ pub mod test_utils {
         async fn create(&self, name: String) -> anyhow::Result<Label> {
             let mut store = self.write_store_ref();
             let id = (store.len() + 1) as i32;
-            let label = Label::new(id, name.to_string());
+            let label = Label{id, name };
             store.insert(id, label.clone());
             Ok(label)
         }
         /// 全件取得
         async fn all(&self) -> anyhow::Result<Vec<Label>> {
-            let store: RwLockWriteGuard<LabelData> = self.write_store_ref();
+            let store: RwLockReadGuard<LabelData> = self.read_store_ref();
             Ok(Vec::from_iter(store.values().map(|label| label.clone())))
         }
         /// 削除
@@ -152,7 +174,7 @@ pub mod test_utils {
     }
     /// CRUD シナリオ
     #[tokio::test]
-    async fn crud_scneario() {
+    async fn crud_scenario() {
 
         let repository = LabelRepositoryForMemory::new();
         let label_text = "test_label";
